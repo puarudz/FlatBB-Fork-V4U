@@ -32,6 +32,17 @@ if (is_mod() && $u !== null && (int)$u['id'] !== uid() && !(int)($author_group['
 }
 $actions['link'] = ['html' => '<a class="act" href="' . h(url('/post/' . $post['id'])) . '" data-copy="' . h(absolute_url('/post/' . $post['id'])) . '" title="' . t('Copy link to this post') . '">' . icon('link') . '<span>' . t('Link') . '</span></a>'];
 $actions = region_list('post.actions', $actions, $ctx);
+// Two actions carry the post: liking it and answering it. The author keeps Edit beside them; every other action
+// (quote, link, share, report, rate, translate, and the staff tools) waits in one drawer so the row cannot be misread.
+$primary_ids = ['like', 'reply'];
+if ((int)$post['user_id'] === uid() && !$deleted) $primary_ids[] = 'edit';
+$primary_actions = [];
+$more_actions = [];
+foreach ($actions as $id => $a) {
+    if (in_array($id, $primary_ids, true)) $primary_actions[$id] = $a;
+    else $more_actions[$id] = $a;
+}
+if ($primary_actions === []) { $primary_actions = $more_actions; $more_actions = []; }
 $head = $head ?? null;
 ?>
 <?= slot('post.before', $ctx) ?>
@@ -68,8 +79,17 @@ $head = $head ?? null;
     <?php endif; ?>
     <?php if ((int)$post['floor'] === 0 && !empty($topic['tags'])): ?><div class="post-tags"><?php foreach ($topic['tags'] as $tg): ?><?= tag_badge($tg) ?><?php endforeach; ?></div><?php endif; ?>
     <?= slot('post.content_after', $ctx) ?>
+    <?php if ($actions !== []): ?>
     <footer class="post-actions" data-slot="post.actions">
-      <?php foreach ($actions as $a): ?><?= raw($a['html'] ?? '') ?><?php endforeach; ?>    </footer>
+      <?php foreach ($primary_actions as $a): ?><?= raw($a['html'] ?? '') ?><?php endforeach; ?>
+      <?php if ($more_actions !== []): ?>
+      <button type="button" class="act post-more-toggle" data-more-toggle aria-expanded="false" aria-controls="post-more-<?= (int)$post['id'] ?>" title="<?= t('More') ?>"><?= icon('more') ?><span><?= t('More') ?></span></button>
+      <div class="post-actions-more" id="post-more-<?= (int)$post['id'] ?>" role="group" aria-label="<?= t('More actions') ?>" hidden>
+        <?php foreach ($more_actions as $a): ?><?= raw($a['html'] ?? '') ?><?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+    </footer>
+    <?php endif; ?>
   </div>
 </article>
 <?= slot('post.after', $ctx) ?>

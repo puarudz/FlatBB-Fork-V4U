@@ -87,7 +87,14 @@ function cron_hot_scores(): string
 function cron_cleanup(): string
 {
     $n = db_delete('fb_notifications', 'is_read=1 AND created_at<?', [now() - 86400 * 90]);
+    $orphans = col('SELECT path FROM fb_attachments WHERE post_id=0 AND created_at<?', [now() - 86400 * 2]);
     $n += db_delete('fb_attachments', 'post_id=0 AND created_at<?', [now() - 86400 * 2]);
+    foreach ($orphans as $p) { // the file must go with the row: uploads/ is web-served and names are only random while nobody points at them
+        $p = ltrim((string)preg_replace('/[?#].*$/', '', (string)$p), '/');
+        if ($p === '' || str_contains($p, '..')) continue;
+        $file = realpath(UPLOAD_DIR . '/' . $p);
+        if ($file !== false && str_starts_with($file, realpath(UPLOAD_DIR) . '/') && is_file($file)) @unlink($file);
+    }
     $n += db_delete('fb_admin_log', 'created_at<?', [now() - 86400 * 180]);
     $n += email_code_cleanup();
     return $n . ' rows';

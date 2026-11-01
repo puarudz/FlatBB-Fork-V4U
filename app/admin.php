@@ -495,9 +495,9 @@ function admin_page_confirm(): never
     $self = admin_url('confirm', ['back' => $back]);
     if (is_post()) {
         check_csrf();
-        if (!login_throttle_ok()) fail(t('Too many attempts. Please wait a minute.'), $self);
+        if (!login_throttle_ok('confirm')) fail(t('Too many attempts. Please wait a minute.'), $self);
         if (!password_verify(post_secret('password'), (string)$me['password'])) {
-            login_throttle_hit();
+            login_throttle_hit('confirm');
             fail(t('Current password is incorrect.'), $self);
         }
         sudo_grant($me);

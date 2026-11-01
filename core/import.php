@@ -9,7 +9,8 @@
  * polls) or the command line, so closing the page only pauses the import.
  *
  * Imports go into an empty forum only (import_ready()): starting one removes the starter content, and the importer
- * may keep the source ids of topics and posts, so its old links can be redirected.
+ * may keep the source ids of topics and posts, so its old links can be redirected. An importer that adds rows to a
+ * forum which already has content starts its job in additive mode: the forum is left as it is.
  *
  *   'importer' => ['from' => 'flarum', 'label' => 'Flarum', 'page' => 'run', 'step' => 'myid_step', 'cli' => 'myid_cli']
  *
@@ -63,9 +64,10 @@ function import_job_save(array $job): void
 /**
  * Whether this forum may receive an import: ['ok' => bool, 'reason' => text, 'members', 'topics', 'categories', 'tags'].
  * A new forum has one member (you) and the starter content, which the import replaces. After an import, starting
- * again is allowed too: the members and content of the last import are removed first.
+ * again is allowed too: the members and content of the last import are removed first. $additive (an importer that
+ * only adds members) also accepts a forum that already has content; only a running job stands in its way.
  */
-function import_ready(): array
+function import_ready(bool $additive = false): array
 {
     $job = import_job();
     $r = [
@@ -74,22 +76,23 @@ function import_ready(): array
         'categories' => (int)val('SELECT COUNT(*) FROM fb_categories'), 'tags' => (int)val('SELECT COUNT(*) FROM fb_tags'),
     ];
     if (($job['status'] ?? '') === 'running') return ['ok' => false, 'reason' => t('An import is running. Finish or cancel it first.')] + $r;
-    if (!$r['again'] && $r['members'] > 1) return ['ok' => false, 'reason' => t('This forum already has members. Imports go into a new, empty forum: install a fresh copy of FlatBB and import there.')] + $r;
+    if (!$additive && !$r['again'] && $r['members'] > 1) return ['ok' => false, 'reason' => t('This forum already has members. Imports go into a new, empty forum: install a fresh copy of FlatBB and import there.')] + $r;
     return $r;
 }
 
 /**
  * Start a job for an importer plugin. $phases: [['key' => 'users', 'label' => 'Members', 'total' => 3412], ...] in the
  * order they run (labels are English source text, shown through t()). $data is the importer's own state; $secret holds
- * what must not outlive the job (a database password): it is removed when the job ends.
+ * what must not outlive the job (a database password): it is removed when the job ends. $additive leaves the forum
+ * untouched (no reset): the importer only adds rows that are not here yet.
  */
-function import_start(string $plugin, array $phases, array $data = [], array $secret = []): void
+function import_start(string $plugin, array $phases, array $data = [], array $secret = [], bool $additive = false): void
 {
-    $ready = import_ready();
+    $ready = import_ready($additive);
     if (!$ready['ok']) throw new RuntimeException($ready['reason']);
     $last = import_job();
     $admin = (int)($last['admin_id'] ?? 0) ?: (uid() ?: (int)val('SELECT MIN(id) FROM fb_users'));
-    import_reset($ready['again'] ? $admin : 0);
+    if (!$additive) import_reset($ready['again'] ? $admin : 0);
     $list = [];
     foreach ($phases as $p) $list[] = ['key' => (string)$p['key'], 'label' => (string)$p['label'], 'total' => max(0, (int)($p['total'] ?? 0)), 'done' => 0];
     $list[] = ['key' => '_counts', 'label' => 'Counters', 'total' => 0, 'done' => 0];

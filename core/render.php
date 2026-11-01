@@ -110,13 +110,12 @@ function card(string $title, string $body, string $class = '', string $extra = '
     return '<section class="card ' . h($class) . '">' . ($title !== '' ? '<header class="card-head"><h3>' . h($title) . '</h3>' . $extra . '</header>' : '') . '<div class="card-body">' . $body . '</div></section>';
 }
 
-/** Default logo mark (rounded square, F + dot). Fill follows --brand; assets/favicon.svg is the same drawing. */
+/** Default logo mark (rounded square, V). Fill follows --brand; assets/favicon.svg is the same drawing. */
 function logo_mark(int $size = 28, string $class = ''): string
 {
     return '<svg class="logo-mark' . ($class !== '' ? ' ' . h($class) : '') . '" width="' . $size . '" height="' . $size . '" viewBox="0 0 64 64" aria-hidden="true">'
         . '<rect width="64" height="64" rx="16" fill="var(--brand, #e7672e)"/>'
-        . '<path d="M21 13h27a5 5 0 0 1 0 10H26v4h14a5 5 0 0 1 0 10H26v9a5 5 0 0 1-10 0V18a5 5 0 0 1 5-5z" fill="#fff"/>'
-        . '<circle cx="43" cy="45" r="5.5" fill="#fff"/></svg>';
+        . '<path d="M17 13 32 48 47 13" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
 
 /**
@@ -409,6 +408,7 @@ function user_name(?array $user): string
     return $display !== '' && display_names_on() ? $display : (string)($user['username'] ?? '?');
 }
 
+/** A member's name as a link, with the plugins' name badges (user.link_after) after it; "plain": no group colour; "no-badges": skip the badges. */
 function user_link(?array $user, string $class = 'user-link'): string
 {
     if ($user === null) return '<span class="' . h($class) . ' user-deleted">' . t('deleted') . '</span>';
@@ -416,7 +416,9 @@ function user_link(?array $user, string $class = 'user-link'): string
     $style = !empty($g['color']) ? ' style="color:' . h($g['color']) . '"' : '';
     $name = user_name($user);
     $title = $name !== (string)$user['username'] ? ' title="@' . h((string)$user['username']) . '"' : ''; // a display name tells who it is on hover
-    return '<a class="' . h($class) . '" href="' . h(user_url($user)) . '"' . $style . $title . ' dir="auto">' . h($name) . '</a>' . hook('user.link_after', '', ['user' => $user, 'class' => $class]);
+    $link = '<a class="' . h($class) . '" href="' . h(user_url($user)) . '"' . $style . $title . ' dir="auto">' . h($name) . '</a>';
+    if (str_contains($class, 'no-badges')) return $link; // "no-badges": the plugins' name badges (user.link_after) stay off, e.g. compact list metas
+    return $link . hook('user.link_after', '', ['user' => $user, 'class' => $class]);
 }
 
 /** A built-in icon by name, or an uploaded image (a path under uploads/, e.g. site/cat_3.png) as an icon-sized <img>; '' when neither. */

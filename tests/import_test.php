@@ -140,6 +140,28 @@ function test_import_runs_a_job_and_fills_the_forum(): void
     });
 }
 
+function test_import_can_add_members_to_a_forum_that_keeps_its_content(): void
+{
+    importtest_with_importer(static function (int $admin): void {
+        $topics = (int)val('SELECT COUNT(*) FROM fb_topics');
+        $existing = user_create('someone_else', 'someone@example.invalid', 'password-123');
+        test_same(false, import_ready()['ok'], 'a forum with members refuses a full import');
+        test_same(true, import_ready(true)['ok'], 'but accepts an additive one');
+        import_start('importtest', [['key' => 'users', 'label' => 'Members', 'total' => 3]], ['source' => 'x'], [], true);
+        test_same($topics, (int)val('SELECT COUNT(*) FROM fb_topics'), 'additive: the content is kept');
+        test_same(2, (int)val('SELECT COUNT(*) FROM fb_users'), 'additive: the members are kept');
+        $job = importtest_run_to_end();
+        test_same('done', $job['status'], 'status');
+        test_same(['Members', 'Counters', 'Search index'], array_column($job['phases'], 'label'), 'only the members phase plus the core phases');
+        test_same($admin, (int)$job['data']['map']['u1'], 'the administrator is matched by email');
+        test_same('password-123', $existing > 0 && password_verify('password-123', (string)val('SELECT password FROM fb_users WHERE id=?', [$existing])) ? 'password-123' : '', 'the existing member is untouched');
+        test_same(4, (int)val('SELECT COUNT(*) FROM fb_users'), 'the two new members were added');
+        import_start('importtest', [['key' => 'users', 'label' => 'Members', 'total' => 3]], [], [], true);
+        test_same(4, (int)val('SELECT COUNT(*) FROM fb_users'), 'additive: starting again removes nothing');
+        test_same($topics, (int)val('SELECT COUNT(*) FROM fb_topics'), 'additive: the content is still there');
+    });
+}
+
 function test_import_stops_on_an_error_and_continues(): void
 {
     importtest_with_importer(static function (): void {

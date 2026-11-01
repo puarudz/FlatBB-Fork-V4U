@@ -130,6 +130,39 @@ function topic_stats_refresh(int $tid): void
     category_refresh_stats((int)$t['category_id']);
 }
 
+/** Bring a member's public topic/reply counters up to date after content was deleted or restored (same rules as Admin → Tools → Recalculate counters). */
+function user_counts_refresh(int $uid): void
+{
+    if ($uid <= 0) return;
+    q('UPDATE fb_users SET topic_count=(SELECT COUNT(*) FROM fb_topics t WHERE t.user_id=fb_users.id AND t.is_deleted=0),'
+        . ' post_count=(SELECT COUNT(*) FROM fb_posts p WHERE p.user_id=fb_users.id AND p.is_deleted=0 AND p.floor>0)'
+        . ' WHERE id=?', [$uid]);
+    request_cache('users_full', null, true);
+    request_cache('users', null, true);
+    request_cache('me', null, true);
+}
+
+/** Hide or show a topic and bring everything that depends on it up to date: search, its category and its author's counters. */
+function topic_set_deleted(array $topic, bool $deleted): void
+{
+    db_update('fb_topics', ['is_deleted' => $deleted ? 1 : 0], 'id=?', [(int)$topic['id']]);
+    if ($deleted) search_delete_topic((int)$topic['id']);
+    else foreach (all('SELECT id,body FROM fb_posts WHERE topic_id=? AND is_deleted=0', [(int)$topic['id']]) as $p) search_index_post((int)$p['id'], (int)$topic['id'], (string)$topic['title'], (string)$p['body']);
+    category_refresh_stats((int)$topic['category_id']);
+    user_counts_refresh((int)$topic['user_id']);
+    request_cache('topic_' . (int)$topic['id'], null, true);
+}
+
+/** Hide or show a reply and bring its topic (and category) and its author's reply counter up to date. */
+function post_set_deleted(array $post, array $topic, bool $deleted): void
+{
+    db_update('fb_posts', ['is_deleted' => $deleted ? 1 : 0], 'id=?', [(int)$post['id']]);
+    if ($deleted) search_delete_post((int)$post['id']);
+    else search_index_post((int)$post['id'], (int)$topic['id'], (string)$topic['title'], (string)$post['body']);
+    topic_stats_refresh((int)$topic['id']);
+    user_counts_refresh((int)$post['user_id']);
+}
+
 /**
  * Remember how far the member has read a topic. The mark only moves forward: opening an earlier page of a long topic
  * does not make the later replies unread again. $known: the mark already read by the caller (-1 = look it up).
@@ -408,6 +441,8 @@ function topic_edit(string $id): never
         $title = post_str('title', 200);
         $body = post_str('body');
         $cat = category_by_id(post_int('category_id')) ?? category_by_id((int)$topic['category_id']);
+        $data = hook('topic.before_update', ['topic_id' => (int)$topic['id'], 'title' => $title, 'body' => $body], ['topic' => $topic]);
+        if (is_array($data)) { $title = (string)($data['title'] ?? $title); $body = (string)($data['body'] ?? $body); }
         if (!topic_title_valid($title)) fail(t('Title must be between 3 and 200 characters.'));
         if (!post_body_valid($body)) fail(t('Post body is too short.'));
         tx(static function () use ($topic, $post, $me, $title, $body, $cat): void {
@@ -454,17 +489,13 @@ function topic_action(string $id): never
         case 'lock': db_update('fb_topics', ['is_locked' => 1], 'id=?', [(int)$topic['id']]); break;
         case 'unlock': db_update('fb_topics', ['is_locked' => 0], 'id=?', [(int)$topic['id']]); break;
         case 'delete':
-            db_update('fb_topics', ['is_deleted' => 1], 'id=?', [(int)$topic['id']]);
-            search_delete_topic((int)$topic['id']);
-            category_refresh_stats((int)$topic['category_id']);
+            topic_set_deleted($topic, true);
             fire('topic.after_delete', ['topic_id' => (int)$topic['id']]);
             flash(t('Topic deleted.'));
             redirect(url('/'));
         case 'restore':
             if ((int)$topic['is_deleted'] !== 1) fail(t('This topic waits in the review queue.'), url('/review'));
-            db_update('fb_topics', ['is_deleted' => 0], 'id=?', [(int)$topic['id']]);
-            category_refresh_stats((int)$topic['category_id']);
-            foreach (all('SELECT id,body FROM fb_posts WHERE topic_id=? AND is_deleted=0', [(int)$topic['id']]) as $p) search_index_post((int)$p['id'], (int)$topic['id'], (string)$topic['title'], (string)$p['body']);
+            topic_set_deleted($topic, false);
             break;
         case 'move':
             $cat = category_by_id(post_int('category_id'));
@@ -531,7 +562,8 @@ function post_like(string $id): never
     $me = need_login();
     require_post();
     $post = post_by_id((int)$id);
-    if ($post === null || (int)$post['is_deleted'] !== 0 || post_topic_visible($post) === null) not_found();
+    $topic = $post !== null ? post_topic_visible($post) : null;
+    if ($post === null || (int)$post['is_deleted'] !== 0 || $topic === null || topic_access_denied($topic) !== '') not_found();
     $liked = (bool)val('SELECT 1 FROM fb_likes WHERE user_id=? AND post_id=?', [(int)$me['id'], (int)$post['id']]);
     tx(static function () use ($liked, $me, $post): void {
         if ($liked) {
@@ -567,10 +599,7 @@ function post_delete(string $id): never
     $restore = post_str('action', 20) === 'restore';
     if ($restore ? !is_mod() : !can_edit_post($post)) forbidden();
     if ($restore && (int)$post['is_deleted'] !== 1) fail(t('This reply waits in the review queue.'), url('/review'));
-    db_update('fb_posts', ['is_deleted' => $restore ? 0 : 1], 'id=?', [(int)$post['id']]);
-    if ($restore) search_index_post((int)$post['id'], (int)$topic['id'], (string)$topic['title'], (string)$post['body']);
-    else search_delete_post((int)$post['id']);
-    topic_stats_refresh((int)$topic['id']);
+    post_set_deleted($post, $topic, !$restore);
     fire('post.after_delete', ['post_id' => (int)$post['id'], 'restored' => $restore]);
     flash($restore ? t('Reply restored.') : t('Reply deleted.'));
     redirect(topic_url($topic));
@@ -580,7 +609,8 @@ function post_delete(string $id): never
 function post_raw(string $id): never
 {
     $post = post_by_id((int)$id);
-    if ($post === null || (int)$post['is_deleted'] !== 0 || post_topic_visible($post) === null) json_error('not found', 404);
+    $topic = $post !== null ? post_topic_visible($post) : null;
+    if ($post === null || (int)$post['is_deleted'] !== 0 || $topic === null || topic_access_denied($topic) !== '') json_error('not found', 404);
     $user = user_by_id((int)$post['user_id']);
     json_ok(['body' => $post['body'], 'username' => $user['username'] ?? '', 'floor' => (int)$post['floor']]);
 }

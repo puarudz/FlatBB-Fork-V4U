@@ -81,6 +81,11 @@ docs/              documentation for humans and AIs (HOOKS.md and API.md are gen
 - URLs are built with `url('/path')`, `topic_url($topic)`, `category_url($c)`, `user_url($u)`, `admin_url('page')` — never hard-coded.
 - Icons: `icon('name')` (see `icon_paths()` in core/render.php). Colours and sizes come from CSS variables in `assets/app.css`.
 
+## Taste (this site)
+
+- Badges and labels are solid, colour-filled, rounded pills (`--radius-pill`) with high-contrast text: visually distinct from the surrounding text, never a faint text-coloured or soft-background chip.
+- Slugs from Vietnamese titles fold to plain ASCII without diacritics (`slugify()` in core/helpers.php: "Hướng dẫn nạp tiền" → "huong-dan-nap-tien"); when regenerating the slug of existing content, keep that form.
+
 ## Commands
 
 ```bash

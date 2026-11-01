@@ -44,6 +44,21 @@ function test_csrf_exempt_registry(): void
     test_same(false, router_csrf_exempt('/api/x/other'));
 }
 
+function test_login_throttle_is_scoped_per_flow(): void
+{
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    $_SERVER['REMOTE_ADDR'] = '198.51.100.23'; // documentation range: the test IP is stable
+    foreach (['login', 'forgot', 'confirm'] as $s) @unlink(login_throttle_file($s));
+    test_same(true, login_throttle_ok('forgot'), 'forgot starts open');
+    for ($i = 0; $i < 8; $i++) login_throttle_hit('forgot');
+    test_same(false, login_throttle_ok('forgot'), 'forgot locks after 8 tries');
+    test_same(true, login_throttle_ok('login'), 'flooding the forgot form must not lock sign-in');
+    test_same(true, login_throttle_ok('confirm'), 'flooding the forgot form must not lock the admin password confirmation');
+    test_same('login', basename(login_throttle_file()) === basename(login_throttle_file('login')) ? 'login' : 'different', 'default scope is login');
+    foreach (['login', 'forgot', 'confirm'] as $s) @unlink(login_throttle_file($s));
+    $_SERVER['REMOTE_ADDR'] = $ip;
+}
+
 function test_security_scan_catches_the_known_bad_patterns(): void
 {
     $dir = sys_get_temp_dir() . '/flatbb-scan-' . getmypid();

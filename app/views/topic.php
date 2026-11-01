@@ -15,20 +15,15 @@ $actions = [];
 if ($me) $actions['bookmark'] = ['html' => action_form(url('/t/' . $topic['id'] . '/bookmark'), '<button type="submit" class="btn btn-sm' . ($topic['bookmarked'] ? ' active' : '') . '" data-bookmark title="' . ($topic['bookmarked'] ? t('Bookmarked') : t('Bookmark')) . '">' . icon('bookmark') . '<span>' . ($topic['bookmarked'] ? t('Bookmarked') : t('Bookmark')) . '</span></button>', [], 'inline')];
 // Edit is not repeated here: the opening post carries its own Edit, which opens the topic editor
 $actions = region_list('topic.actions', $actions, ['topic' => $topic]);
+// Following the topic is the one action that stays; sharing, reporting, the staff tools and everything a plugin adds
+// wait in a single labelled drawer, so the title bar never turns into a row of unlabelled symbols.
+$primary_actions = [];
+$more_actions = [];
+foreach ($actions as $id => $a) {
+    if ($id === 'bookmark') $primary_actions[$id] = $a;
+    else $more_actions[$id] = $a;
+}
 ob_start(); ?>
-    <h1 class="topic-title" dir="auto">
-      <?php if ((int)$topic['is_pinned']): ?><span class="row-icon row-icon-pin" title="<?= t('Pinned') ?>"><?= icon('pin') ?></span><?php endif; ?>
-      <?php if ((int)$topic['is_locked']): ?><span class="row-icon" title="<?= t('Locked') ?>"><?= icon('lock') ?></span><?php endif; ?>
-      <?= raw(hook('topic.title', h($topic['title']), ['topic' => $topic, 'where' => 'page'])) ?>
-    </h1>
-<?php $title_html = (string)ob_get_clean(); ob_start(); ?>
-      <?= category_badge($topic['category']) ?>
-      <span class="stat" title="<?= t('Replies') ?>"><?= icon('reply') ?><?= (int)$topic['reply_count'] ?></span>
-      <span class="stat" title="<?= t('Views') ?>"><?= icon('eye') ?><?= (int)$topic['view_count'] ?></span>
-      <?php if ((int)$topic['is_deleted'] === 1): ?><span class="flag flag-danger"><?= t('Deleted') ?></span><?php elseif ((int)$topic['is_deleted'] === REVIEW_PENDING): ?><span class="flag flag-pending"><?= icon('clock') ?><?= t('Awaiting approval') ?></span><?php endif; ?>
-<?php $stats_html = (string)ob_get_clean(); ob_start(); ?>
-    <div class="topic-tools" data-slot="topic.actions">
-      <?php foreach ($actions as $a): ?><?= raw($a['html'] ?? '') ?><?php endforeach; ?>
       <?php if (is_mod() || $manage): ?>
       <div class="dropdown" data-dropdown>
         <button type="button" class="btn btn-sm dropdown-toggle" title="<?= t('Manage') ?>"><?= icon('more') ?><span><?= t('Manage') ?></span></button>
@@ -49,9 +44,34 @@ ob_start(); ?>
         </div>
       </div>
       <?php endif; ?>
+<?php $manage_html = (string)ob_get_clean();
+ob_start(); ?>
+    <h1 class="topic-title" dir="auto">
+      <?php if ((int)$topic['is_pinned']): ?><span class="row-icon row-icon-pin" title="<?= t('Pinned') ?>"><?= icon('pin') ?></span><?php endif; ?>
+      <?php if ((int)$topic['is_locked']): ?><span class="row-icon" title="<?= t('Locked') ?>"><?= icon('lock') ?></span><?php endif; ?>
+      <?= raw(hook('topic.title', h($topic['title']), ['topic' => $topic, 'where' => 'page'])) ?>
+    </h1>
+<?php $title_html = (string)ob_get_clean(); ob_start(); ?>
+      <?= category_badge($topic['category']) ?>
+      <span class="stat" title="<?= t('Replies') ?>"><?= icon('reply') ?><?= (int)$topic['reply_count'] ?></span>
+      <span class="stat" title="<?= t('Views') ?>"><?= icon('eye') ?><?= (int)$topic['view_count'] ?></span>
+      <?php if ((int)$topic['is_deleted'] === 1): ?><span class="flag flag-danger"><?= t('Deleted') ?></span><?php elseif ((int)$topic['is_deleted'] === REVIEW_PENDING): ?><span class="flag flag-pending"><?= icon('clock') ?><?= t('Awaiting approval') ?></span><?php endif; ?>
+<?php $stats_html = (string)ob_get_clean(); ob_start(); ?>
+    <div class="topic-tools" data-slot="topic.actions">
+      <?php foreach ($primary_actions as $a): ?><?= raw($a['html'] ?? '') ?><?php endforeach; ?>
+      <?php if ($more_actions !== [] || $manage_html !== ''): ?>
+      <button type="button" class="btn btn-sm topic-more-toggle" data-more-toggle aria-expanded="false" aria-controls="topic-more-<?= (int)$topic['id'] ?>" title="<?= t('More') ?>"><?= icon('more') ?><span><?= t('More') ?></span></button>
+      <?php endif; ?>
     </div>
-<?php $tools_html = (string)ob_get_clean(); $header_region = region('topic.header', ['topic' => $topic]);
-$bar_html = '<div class="topic-bar"><div class="topic-meta">' . $stats_html . '</div>' . $tools_html . '</div>'; ?>
+<?php $tools_html = (string)ob_get_clean(); ob_start(); ?>
+  <?php if ($more_actions !== [] || $manage_html !== ''): ?>
+  <div class="topic-tools-more" id="topic-more-<?= (int)$topic['id'] ?>" role="group" aria-label="<?= t('More actions') ?>" hidden>
+    <?php foreach ($more_actions as $a): ?><?= raw($a['html'] ?? '') ?><?php endforeach; ?>
+    <?= raw($manage_html) ?>
+  </div>
+  <?php endif; ?>
+<?php $more_html = (string)ob_get_clean(); $header_region = region('topic.header', ['topic' => $topic]);
+$bar_html = '<div class="topic-bar"><div class="topic-meta">' . $stats_html . '</div>' . $tools_html . '</div>' . $more_html; ?>
 <article class="topic-page<?= $merge ? ' topic-merged' : '' ?>" data-topic-id="<?= (int)$topic['id'] ?>">
   <?php if (!$merge): ?>
   <header class="topic-head" data-slot="topic.header">

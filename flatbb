@@ -30,6 +30,12 @@
  *   php flatbb release                 maintainers: build dist/flatbb-<version>.zip and print its sha256
  */
 if (PHP_SAPI !== 'cli') exit("CLI only\n");
+$test_cache = '';
+if (($argv[1] ?? '') === 'test') { // the tests build plugin and theme CSS: give them their own cache, never the live data/cache
+    $test_cache = sys_get_temp_dir() . '/flatbb-test-cache-' . getmypid();
+    @mkdir($test_cache, 0755, true);
+    putenv('FLATBB_CACHE_DIR=' . $test_cache);
+}
 require __DIR__ . '/core/boot.php';
 $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $_SERVER['SCRIPT_NAME'] = '/index.php';
@@ -102,6 +108,10 @@ switch ($cmd) {
         break;
     case 'test':
         [$p, $f, $fails] = test_run((string)($args[0] ?? ''), $out);
+        if ($test_cache !== '') {
+            foreach (glob($test_cache . '/*') ?: [] as $file) if (is_file($file)) @unlink($file);
+            @rmdir($test_cache);
+        }
         $out(($f === 0 ? 'OK ' : 'FAILED ') . $p . ' passed, ' . $f . ' failed');
         exit($f === 0 ? 0 : 1);
     case 'security:check':

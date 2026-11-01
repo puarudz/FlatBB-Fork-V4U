@@ -41,6 +41,15 @@ function test_md_excerpt_is_plain_text(): void
     test_contains('Bold', $text);
 }
 
+function test_md_excerpt_drops_a_linked_image_whole(): void
+{
+    // an image inside a link leaves "[](url)" behind once the image is stripped, and that junk used to open the preview
+    $text = md_excerpt('[![SePay](https://i.x/a.png)](https://sepay.vn?utm=1) **SePay.vn** is a payment platform.', 120);
+    test_not_contains('[](', $text);
+    test_not_contains('sepay.vn', $text);
+    test_contains('SePay.vn', $text);
+}
+
 function test_md_nested_lists_render_once_and_end(): void
 {
     // a nested list with anything after it made the outer list read the sub-list again and again until memory ran out

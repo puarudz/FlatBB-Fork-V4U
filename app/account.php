@@ -80,8 +80,8 @@ function account_forgot(): never
     $sent = false;
     if (is_post()) {
         check_csrf();
-        if (!login_throttle_ok()) fail(t('Too many attempts. Please wait a minute.'), url('/forgot'));
-        login_throttle_hit();
+        if (!login_throttle_ok('forgot')) fail(t('Too many attempts. Please wait a minute.'), url('/forgot'));
+        login_throttle_hit('forgot');
         $email = mb_strtolower(post_str('email', 120));
         $user = $email !== '' ? one('SELECT * FROM fb_users WHERE email=? AND status=1', [$email]) : null;
         if ($user !== null) {
@@ -136,24 +136,29 @@ function account_logout(): never
     redirect(url('/'));
 }
 
-/** Simple per-IP throttle stored in a cache file (no DB writes on failed logins). */
-function login_throttle_file(): string
+/**
+ * Simple per-IP throttle stored in a cache file (no DB writes on failed logins). $scope gives each flow its own counter:
+ * flooding one address (the forgot form) must not lock another (the sign-in, the admin password confirmation, a
+ * two-factor challenge) that shares the visitor's IP.
+ */
+function login_throttle_file(string $scope = 'login'): string
 {
-    return CACHE_DIR . '/login_' . md5(client_ip()) . '.json';
+    $scope = preg_replace('/[^a-z0-9_-]/', '', strtolower($scope)) ?: 'login';
+    return CACHE_DIR . '/' . $scope . '_' . md5(client_ip()) . '.json';
 }
 
-function login_throttle_ok(): bool
+function login_throttle_ok(string $scope = 'login'): bool
 {
-    $f = login_throttle_file();
+    $f = login_throttle_file($scope);
     if (!is_file($f)) return true;
     $d = json_decode_array((string)file_get_contents($f));
     if (now() - (int)($d['at'] ?? 0) > 60) return true;
     return (int)($d['n'] ?? 0) < 8;
 }
 
-function login_throttle_hit(): void
+function login_throttle_hit(string $scope = 'login'): void
 {
-    $f = login_throttle_file();
+    $f = login_throttle_file($scope);
     $d = is_file($f) ? json_decode_array((string)file_get_contents($f)) : [];
     if (now() - (int)($d['at'] ?? 0) > 60) $d = ['n' => 0, 'at' => now()];
     $d['n'] = (int)($d['n'] ?? 0) + 1;

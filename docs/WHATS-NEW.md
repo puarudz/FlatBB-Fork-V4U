@@ -2,6 +2,18 @@
 
 The changes that matter when you write a plugin or a theme, newest release first. Everything else a release brings is in the release notes on GitHub: https://github.com/nwnuyhs/flatbb/releases
 
+## 0.2.5
+
+This is the [FlatBB-Fork-V4U](https://github.com/puarudz/FlatBB-Fork-V4U) release on top of upstream 0.2.4.
+
+- **Two new hooks**: `topic.before_update` (filter: `[topic_id, title, body]` before an edit is saved; ctx: topic) and `user.preferences.after` (HTML inside the Settings → Preferences form; save through `user.prefs_save`).
+- `user_link($user, $class)` skips the `user.link_after` name badges when `$class` contains `no-badges`, for compact list metas that already show their own marks.
+- **Importers** can add to a forum that already has content: `import_start(..., $additive = true)` and `import_ready($additive)` keep the existing members, categories and topics instead of resetting them, so an importer that only adds users runs on a live forum.
+- `slugify()` folds Vietnamese diacritics to plain ASCII ("Hướng dẫn nạp tiền" → "huong-dan-nap-tien"). Titles saved from now on get an ASCII slug; existing slugs are untouched until the title is saved again.
+- `login_throttle_ok()` / `login_throttle_hit()` take a `$scope` (`login`, `forgot`, `confirm`, or your own): each flow has its own per-IP counter, so a plugin that throttles its own form no longer shares the sign-in counter.
+- Deleting or restoring a topic or a reply keeps everything around it in step (`topic_set_deleted()`, `post_set_deleted()`, `user_counts_refresh()`): search, the category counters and the author's topic/reply counts.
+- `php flatbb test` writes CSS bundles to its own cache directory (`FLATBB_CACHE_DIR`), never into the live `data/cache`.
+
 ## 0.2.4
 
 - **Vietnamese** language pack (`lang/vi.php`), contributed by [Hàn Phong](https://www.flatbb.com/t/134).

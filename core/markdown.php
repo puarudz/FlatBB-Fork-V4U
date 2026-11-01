@@ -220,7 +220,8 @@ function md_excerpt(string $text, int $max = 160): string
     $text = (string)hook('markdown.excerpt', $text, ['max' => $max]);
     $t = preg_replace('/```.*?```/s', '', $text) ?? $text;
     $t = preg_replace('/!\[[^\]]*\]\([^)]*\)/', '', $t) ?? $t;
-    $t = preg_replace('/\[([^\]]+)\]\([^)]*\)/', '$1', $t) ?? $t;
+    // an image wrapped in a link leaves "[](url)" behind once the image is gone: the empty label drops the whole thing
+    $t = preg_replace('/\[([^\]]*)\]\([^)]*\)/', '$1', $t) ?? $t;
     $t = preg_replace('/[#>*_`~|-]+/', ' ', $t) ?? $t;
     $t = preg_replace('/\s+/', ' ', $t) ?? $t;
     return cut(trim($t), $max);

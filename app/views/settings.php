@@ -70,6 +70,7 @@ foreach (array_keys($by) as $g) if (!isset($groups[$g])) $groups[$g] = ucfirst($
       <div class="form-row"><?= checkbox('notify_reply', (int)($prefs['notify_reply'] ?? 1) === 1, t('Notify me when someone replies to my topics')) ?></div>
       <div class="form-row"><?= checkbox('notify_mention', (int)($prefs['notify_mention'] ?? 1) === 1, t('Notify me when someone mentions me')) ?></div>
       <div class="form-row"><?= checkbox('show_points', (int)($prefs['show_points'] ?? 1) === 1, t('Show my points on my public profile')) ?></div>
+      <?= raw((string)hook('user.preferences.after', '', ['user' => $user, 'tab' => $tab])) ?>
     <?php endif; ?>
     <?= raw($extra) ?>
     <div class="form-actions"><button type="submit" class="btn btn-primary"><?= t('Save') ?></button></div>

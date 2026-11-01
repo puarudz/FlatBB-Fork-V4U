@@ -8,14 +8,14 @@
 declare(strict_types=1);
 
 define('FLATBB', true);
-define('FLATBB_VERSION', '0.2.4');
+define('FLATBB_VERSION', '0.2.5');
 const TOPIC_NEW_FOR = 86400; // a topic wears the "New" mark for its first day
 define('ROOT', dirname(__DIR__));
 define('CORE_DIR', ROOT . '/core');
 define('APP_DIR', ROOT . '/app');
 define('VIEW_DIR', ROOT . '/app/views');
 define('DATA_DIR', ROOT . '/data');
-define('CACHE_DIR', ROOT . '/data/cache');
+define('CACHE_DIR', getenv('FLATBB_CACHE_DIR') ?: ROOT . '/data/cache'); // the test runner points this at a temp dir, so building test fixtures never overwrites the live CSS bundles
 define('PLUGIN_DIR', ROOT . '/plugins');
 define('UPLOAD_DIR', ROOT . '/uploads');
 define('LANG_DIR', ROOT . '/lang');

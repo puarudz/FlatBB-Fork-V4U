@@ -3,6 +3,8 @@
 RewriteEngine On
 # block private directories
 RewriteRule ^(data|core|app|lang|docs|tests|docker)(/|$) - [F,L]
+RewriteRule ^(\.claude|\.qoder|\.opencode|\.commandcode|\.impeccable|dist)(/|$) - [F,L]
+RewriteRule ^[^/]+\.(zip|tar\.gz)$ - [F,L]
 RewriteRule ^plugins/.*\.php$ - [F,L]
 RewriteRule ^uploads/.*\.(php|phtml|phar)$ - [F,L]
 # clean URLs
@@ -10,6 +12,6 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L,QSA]
 </IfModule>
-<FilesMatch "^(flatbb|CLAUDE\.md|AGENTS\.md|README\.md|LICENSE|Dockerfile|docker-compose\.yml)$">
+<FilesMatch "^(flatbb|CLAUDE\.md|AGENTS\.md|README\.md|LICENSING\.md|CONTRIBUTING\.md|LICENSE|Dockerfile|docker-compose\.yml)$">
 Require all denied
 </FilesMatch>

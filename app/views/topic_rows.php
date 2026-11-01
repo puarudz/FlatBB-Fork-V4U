@@ -24,7 +24,7 @@
         <?php if (empty($hide_author)): ?><span class="meta"><?= icon('user') ?><?= user_link($t['user'], 'user-link plain') ?></span><?php endif; ?>
         <span class="meta" title="<?= t('Views') ?>"><?= icon('eye') ?><?= human_number((int)$t['view_count']) ?></span>
         <span class="meta" title="<?= t('Replies') ?>"><?= icon('message') ?><?= human_number((int)$t['reply_count']) ?></span>
-        <?php if ((int)$t['reply_count'] > 0 && $t['last_user']): ?><span class="meta" title="<?= t('Last reply') ?>"><?= icon('reply') ?><?= user_link($t['last_user'], 'user-link plain') ?></span><?php endif; ?>
+        <?php if ((int)$t['reply_count'] > 0 && $t['last_user']): ?><span class="meta" title="<?= t('Last reply') ?>"><?= icon('reply') ?><?= user_link($t['last_user'], 'user-link plain no-badges') ?></span><?php endif; ?>
         <a class="meta row-time" href="<?= h(url('/post/' . (int)$t['last_post_id'])) ?>" title="<?= t('Last reply') ?>"><?= time_tag((int)$t['last_post_at']) ?></a>
         <?php foreach ($t['tags'] as $tg): ?><a class="meta row-tag" href="<?= h(tag_url($tg)) ?>">#<?= h($tg['name']) ?></a><?php endforeach; ?>
         <?php if ($t['category']): ?><a class="meta meta-cat" href="<?= h(category_url($t['category'])) ?>"><?= h($t['category']['name']) ?></a><?php endif; ?>

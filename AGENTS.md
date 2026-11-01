@@ -81,6 +81,27 @@ docs/              documentation for humans and AIs (HOOKS.md and API.md are gen
 - URLs are built with `url('/path')`, `topic_url($topic)`, `category_url($c)`, `user_url($u)`, `admin_url('page')` — never hard-coded.
 - Icons: `icon('name')` (see `icon_paths()` in core/render.php). Colours and sizes come from CSS variables in `assets/app.css`.
 
+## Taste (this site)
+
+- Badges and labels are solid, colour-filled, rounded pills (`--radius-pill`) with high-contrast text: visually distinct from the surrounding text, never a faint text-coloured or soft-background chip.
+- Slugs from Vietnamese titles fold to plain ASCII without diacritics (`slugify()` in core/helpers.php: "Hướng dẫn nạp tiền" → "huong-dan-nap-tien"); when regenerating the slug of existing content, keep that form.
+
+## Local asset library
+
+- The purchased **Free Icon Pack v3.1 (Basic)** by gvesster lives at `data/icon-pack/Free Icon Pack v3.1 (Basic)/`
+  (2,045 PNGs, 12 MB, never web-served). Pick art from `<Category>/<Icon>/64px/*.png`, copy the file into the plugin's
+  `assets/icons/` under a short name, and credit the pack in that plugin's README. Licence: `License.txt` in the pack
+  root — commercial use allowed, do not resell or repackage the icons.
+
+## Design checks (Impeccable)
+
+Impeccable is installed at `.qoder/skills/impeccable/` (engine: `scripts/impeccable`, no runtime needed).
+
+- Before editing UI (CSS, view templates, a new surface), read `.qoder/skills/impeccable/SKILL.md` and its `reference/craft-floor.md`.
+- After UI edits, run `.qoder/skills/impeccable/scripts/impeccable detect --json <markup file/dir or URL>` and fix real findings in the files you touched. A plugin must not patch core: report `assets/app.css` / `app/views/*` findings instead of editing them from a plugin.
+- The detector over-fires on decorative micro-type (`undersized-ui-text`); check each hit against the rendered page before changing it.
+- `/impeccable critique <target>` writes snapshots to `.impeccable/critique/`; `/impeccable polish` reads them.
+
 ## Commands
 
 ```bash

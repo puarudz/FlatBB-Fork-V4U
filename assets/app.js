@@ -250,6 +250,33 @@
     }
   });
 
+  /* ---------- action toolbars: the few actions that carry the page stay out, the rest open on demand ---------- */
+  (function () {
+    function closeMore(except) {
+      $$('[data-more-toggle][aria-expanded="true"]').forEach(function (b) {
+        if (b === except) return;
+        b.setAttribute('aria-expanded', 'false');
+        b.classList.remove('active');
+        var p = document.getElementById(b.getAttribute('aria-controls'));
+        if (p) p.hidden = true;
+      });
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-more-toggle]');
+      if (b) {
+        var panel = document.getElementById(b.getAttribute('aria-controls'));
+        var open = b.getAttribute('aria-expanded') === 'true';
+        closeMore(b);
+        b.setAttribute('aria-expanded', open ? 'false' : 'true');
+        b.classList.toggle('active', !open);
+        if (panel) panel.hidden = open;
+        return;
+      }
+      if (!e.target.closest('.post-actions-more, .topic-tools-more')) closeMore();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMore(); });
+  })();
+
   /* ---------- email verification codes ---------- */
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-send-code]'); if (!b) return;
@@ -859,10 +886,11 @@
 
   /* ---------- misc ---------- */
   var flash = $('[data-flash]');
+  var keepFlashInline = document.body.classList.contains('page-auth'); // sign-in errors belong next to the form, not in a toast
   var kept = null;
   try { kept = JSON.parse(sessionStorage.getItem('fb_keep_place') || 'null'); sessionStorage.removeItem('fb_keep_place'); } catch (x) {}
   if (kept && Date.now() - kept.t < 20000 && kept.path === location.pathname + location.search && !location.hash) {
-    if (flash) { toast(flash.textContent, flash.classList.contains('flash-error') ? 'error' : 'success'); flash.remove(); flash = null; }
+    if (flash && !keepFlashInline) { toast(flash.textContent, flash.classList.contains('flash-error') ? 'error' : 'success'); flash.remove(); flash = null; }
     // the same form (same position among the forms, same action) goes back to the same height on screen; otherwise the old scroll offset
     var keptMoved = false, backToPlace = function () {
       if (keptMoved) return;
@@ -874,7 +902,7 @@
     backToPlace();
     window.addEventListener('load', backToPlace, { once: true });
   }
-  if (flash) setTimeout(function () { flash.classList.add('fade'); }, 4000);
+  if (flash && !keepFlashInline) setTimeout(function () { flash.classList.add('fade'); }, 4000);
   var target = location.hash === '#new' ? $('#new') : (location.hash.indexOf('#post-') === 0 ? $(location.hash) : null);
   if (target) {
     {

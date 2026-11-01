@@ -44,7 +44,7 @@ function upgrade_http_get(string $url, int $max_bytes, ?string &$error = null): 
     // The update check reports the site URL and version so the project can count installs (like WordPress does).
     // Opt out with 'phone_home' => false in data/config.php; then only the generic user agent is sent.
     $headers = config('phone_home', true) ? ['X-Flatbb-Site: ' . base_url(), 'X-Flatbb-Version: ' . FLATBB_VERSION] : [];
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 120, CURLOPT_USERAGENT => 'flatbb/' . FLATBB_VERSION . ' upgrade', CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0, CURLOPT_HTTPHEADER => $headers, CURLOPT_NOPROGRESS => false, CURLOPT_PROGRESSFUNCTION => static fn($r, $t, $dl): int => $dl > $max_bytes ? 1 : 0]);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 120, CURLOPT_USERAGENT => 'flatbb/' . FLATBB_VERSION . ' upgrade', CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_HTTPHEADER => $headers, CURLOPT_NOPROGRESS => false, CURLOPT_PROGRESSFUNCTION => static fn($r, $t, $dl): int => $dl > $max_bytes ? 1 : 0]);
     $body = http_exec_prefer_local($ch, $url);
     $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     $err = curl_error($ch);
@@ -78,7 +78,8 @@ function upgrade_apply(?string $zip_file = null, ?callable $log = null): string
         if ($body === null) throw new RuntimeException('Download failed: ' . $error);
         $zip_file = CACHE_DIR . '/flatbb-' . $info['version'] . '.zip';
         file_put_contents($zip_file, $body, LOCK_EX);
-        if ($info['sha256'] !== '' && !hash_equals(strtolower((string)$info['sha256']), hash_file('sha256', $zip_file))) { @unlink($zip_file); throw new RuntimeException('Checksum mismatch, download discarded'); }
+        if ($info['sha256'] === '') { @unlink($zip_file); throw new RuntimeException('The release offers no sha256 checksum; refusing to install an unverified package'); }
+        if (!hash_equals(strtolower((string)$info['sha256']), hash_file('sha256', $zip_file))) { @unlink($zip_file); throw new RuntimeException('Checksum mismatch, download discarded'); }
     }
     if (!is_file($zip_file)) throw new RuntimeException('Package not found: ' . $zip_file);
     $tmp = CACHE_DIR . '/upgrade_' . random_token(4);
